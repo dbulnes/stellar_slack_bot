@@ -564,6 +564,11 @@ class Slack extends Adapter {
             "short": true
           },
           {
+            "title": "Network",
+            "value": process.env.STELLAR_HORIZON,
+            "short": true
+          },
+          {
             "title": "Disclaimer",
             "value": "This bot is not affiliated with the Stellar Development Foundation in any official capacity.\nYou should keep no more funds in this bot than you can afford to lose.\nLost funds will not be replaced. Use at your own discretion.",
             "short": false

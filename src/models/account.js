@@ -35,6 +35,31 @@ module.exports = (db) => {
         return balance.gte(required)
       },
 
+      /**
+       *  Checks if the user can pay, and if they can, removes that amount from their account before returning
+       *  This is used to prevent multiple threads from simultaneously passing the "canPay" check in the "withdraw"
+       *  method, only to overdraw from the account.
+       */
+
+      lockInPayment: async function (amount) {
+        /** If we can't pay to begin with, don't have to do anything else */
+        if(!this.canPay(amount)) {
+          return false
+        }
+
+        /** Subtract the amount we want to pay from the account.
+          * Later, we can refund this amount if the transaction fails to go through. */
+        await Account.withinTransaction(async () => {
+          const bal = new Big(this.balance)
+          amount = new Big(amount)
+          this.balance = bal.minus(amount).toFixed(7)
+        })
+
+        await this.saveAsync();
+
+        return true;
+      },
+
       floatBalance: function () {
         const balance = new Big(this.balance)
       },
@@ -205,13 +230,17 @@ module.exports = (db) => {
         const Action = db.models.action
 
         return await Account.withinTransaction(async () => {
-          if (!this.canPay(withdrawalAmount)) {
+          
+          if (! await this.lockInPayment(withdrawalAmount)) {
             throw 'Insufficient balance. Always check with `canPay` before withdrawing money!'
           }
+
+          /** At this point the payment has been locked in, so this.balance has already been changed by 'amount' */
           const sourceBalance = new Big(this.balance)
           const amount = new Big(withdrawalAmount)
-          this.balance = sourceBalance.minus(amount).toFixed(7)
-          const refundBalance = new Big(this.balance)
+
+          /** Here, refund balance is the amount we will set the account's balance to in case we have to refund the transaction / the Tx fails */
+          const refundBalance = sourceBalance.plus(amount)
 
           const now = new Date()
           const doc = {
@@ -232,7 +261,8 @@ module.exports = (db) => {
 
           if (txExists) {
             // Withdrawal already happened within a concurrent transaction, let's skip
-            this.balance = refundBalance.plus(amount).toFixed(7)
+            this.balance = refundBalance.toFixed(7)
+            await this.saveAsync()
             throw 'DUPLICATE_WITHDRAWAL'
           }
 
@@ -242,7 +272,8 @@ module.exports = (db) => {
             const tx = await stellar.createTransaction(to, withdrawalAmount.toFixed(7), hash)
             txSendResponse = await stellar.send(tx)
           } catch (exc) {
-            this.balance = refundBalance.plus(amount).toFixed(7)
+            this.balance = refundBalance.toFixed(7)
+            await this.saveAsync()
             throw exc
           }
 

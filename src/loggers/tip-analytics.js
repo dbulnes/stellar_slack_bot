@@ -105,6 +105,11 @@ class TipAnalytics extends AbstractLogger {
         if(mixpanel) mixpanel.track('withdrawal submission to horizon failed', data)
       },
 
+      onWithdrawalDuplicateWithdrawalAttempted(withdrawal) {
+        let data = TipAnalytics.getWithdrawalAnalyticsBase(withdrawal)
+        if(mixpanel) mixpanel.track('withdrawal duplicate attempted', data)
+      },
+
       onWithdrawalInvalidAmountProvided(withdrawal) {
         let data = TipAnalytics.getWithdrawalAnalyticsBase(withdrawal)
         if(mixpanel) mixpanel.track('withdrawal invalid amount', data)

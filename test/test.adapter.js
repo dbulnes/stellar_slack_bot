@@ -115,10 +115,12 @@ describe('adapter', async () => {
       const target = 'GAKLZ3CMOEMLZWO4EKXLIRDQSZ6XQMNGWCMRSDBJFQITD2TZXYTHBU4X'
       const now = new Date()
 
-      Account.createAsync({
-        adapter: 'testing',
-        uniqueId: 'foo',
-        balance: '5.0000000'
+      Account.withinTransaction(() => {
+        return Account.createAsync({
+          adapter: 'testing',
+          uniqueId: 'foo',
+          balance: '5.0000000'
+        })
       }).then(() => {
         adapter.config.stellar = {
           createTransaction: () => new Promise((res, rej) => {
@@ -163,6 +165,7 @@ describe('adapter', async () => {
       const Account = adapter.config.models.account
       const source = 'GCFXHS4GXL6BVUCXBWXGTITROWLVYXQKQLF4YH5O5JT3YZXCYPAFBJZB'
       const target = 'GA2C5RFPE6GCKMY3US5PAB6UZLKIGSPIUKSLRB6Q723BM2OARMDUYEJ5'
+      const theHash = 'hash'
       const now = new Date()
 
       Account.createAsync({
@@ -174,7 +177,7 @@ describe('adapter', async () => {
           memoId: 'XLM Tipping bot',
           amount: '5',
           asset: 'native',
-          hash: 'hash',
+          hash: theHash,
           type: 'withdrawal',
           target: target,
           source: source
@@ -183,7 +186,7 @@ describe('adapter', async () => {
             address: source,
             createTransaction: () => {}
           }
-          let cmd = new Command.Withdraw('testing', 'foo', '5', target)
+          let cmd = new Command.Withdraw('testing', 'foo', '5', target, theHash)
           await adapter.receiveWithdrawalRequest(cmd)
 
           // account should be refunded

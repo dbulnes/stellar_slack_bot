@@ -81,6 +81,10 @@ class Logger {
 
       },
 
+      onWithdrawalDuplicateWithdrawalAttempted(withdrawal) {
+
+      },
+
       onWithdrawalInvalidAmountProvided(withdrawal) {
 
       },

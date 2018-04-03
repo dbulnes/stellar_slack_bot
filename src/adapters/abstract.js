@@ -174,6 +174,10 @@ class Adapter extends EventEmitter {
     this.emit('withdrawalSubmissionFailed', withdrawal.uniqueId, withdrawal.address, withdrawal.amount, withdrawal.hash);
   }
 
+  async onDuplicateWithdrawalAttempt (withdrawal) {
+    this.emit('withdrawalDuplicateAttempt', withdrawal.uniqueId, withdrawal.address, withdrawal.amount, withdrawal.hash);
+  }
+
   /**
    *
    * Called when you try to withdraw with any invalid address (should only occur when the address is provided as an additional argument / is not retreived directly from the Account db).
@@ -269,6 +273,7 @@ class Adapter extends EventEmitter {
   async onWithdrawal (withdrawal, address, txHash) {
     // Override this or listen to events!
     this.emit('withdrawal', withdrawal.uniqueId, address, withdrawal.amount, withdrawal.hash);
+    return "onWithdrawal"
   }
   /**
    * Called on a successfull tipDevs
@@ -279,6 +284,7 @@ class Adapter extends EventEmitter {
   async onTipDevs (tipDevs, address, txHash) {
     // Override this or listen to events!
     this.emit('tipDevsSuccess', tipDevs.uniqueId, tipDevs.address, tipDevs.amount, tipDevs.hash)
+    return "onTipDevs"
   }
 
   // *** +++ Registration related functions +
@@ -389,7 +395,7 @@ class Adapter extends EventEmitter {
    * otherwise will call the appropriate function on the adapter in the event that there is an insufficient balance or other issue.
    *
    * @param withdrawalRequest {Withdraw}
-   * @returns {Promise<void>}
+   * @returns {Promise<void>|Promise<String>}
    */
   async receiveWithdrawalRequest (withdrawalRequest) {
     const adapter = withdrawalRequest.adapter;
@@ -437,15 +443,19 @@ class Adapter extends EventEmitter {
     } catch (exc) {
       if (exc === 'DESTINATION_ACCOUNT_DOES_NOT_EXIST') {
         this.getLogger().CommandEvents.onWithdrawalDestinationAccountDoesNotExist(withdrawalRequest)
-        return this.onWithdrawalDestinationAccountDoesNotExist(uniqueId, address, fixedAmount, hash);
+        return this.onWithdrawalDestinationAccountDoesNotExist(withdrawalRequest);
       }
       if (exc === 'TRANSACTION_REFERENCE_ERROR') {
         this.getLogger().CommandEvents.onWithdrawalAttemptedToRobotTippingAddress(withdrawalRequest)
-        return this.onWithdrawalReferenceError(uniqueId, address, fixedAmount, hash);
+        return this.onWithdrawalReferenceError(withdrawalRequest);
       }
       if (exc === 'WITHDRAWAL_SUBMISSION_FAILED') {
         this.getLogger().CommandEvents.onWithdrawalSubmissionToHorizonFailed(withdrawalRequest)
-        return this.onWithdrawalSubmissionFailed(uniqueId, address, fixedAmount, hash);
+        return this.onWithdrawalSubmissionFailed(withdrawalRequest);
+      }
+      if (exc === 'DUPLICATE_WITHDRAWAL') {
+        this.getLogger().CommandEvents.onWithdrawalDuplicateWithdrawalAttempted(withdrawalRequest)
+        return this.onDuplicateWithdrawalAttempt(withdrawalRequest);
       }
     }
   }
